@@ -69,7 +69,7 @@ onMounted(() => { interval = setInterval(() => remaining.value = Date.parse(data
 onBeforeUnmount(() => { clearInterval(interval); clearTimeout(toastTimer); stopMusic(); audioContext?.close(); window.removeEventListener('keydown', handleKey); modelLifecycle.abort() })
 </script>
 <template>
-  <div class="site-shell" :class="{ 'intro-complete': mobileIntroDone }">
+  <div class="site-shell" :class="{ 'intro-complete': mobileIntroDone, 'invitation-open': opened }">
     <aside class="editorial-panel">
       <div class="editorial-top"><a class="wordmark" href="#" @click.prevent="opened = false">I <span>&</span> S<span class="wordmark-dot">.</span></a><span class="edition-label">THE WEDDING INVITATION</span></div>
       <div class="editorial-copy"><div class="eyebrow"><span></span> SEBUAH AWAL, SELAMANYA</div><h1>Dua hati.<br>Satu <em>cerita.</em></h1><p>Di antara banyaknya pesan,<br>ada satu yang ingin kami sampaikan kepadamu.</p><div class="couple-signature">Ihsan <span>&</span> Syifa</div><div class="editorial-date"><span>{{ dateParts.day }} . {{ dateParts.month }} . {{ dateParts.year }}</span><i></i><span>{{ data.city.toUpperCase() }}</span></div></div>
