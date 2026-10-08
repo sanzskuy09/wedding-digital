@@ -5,3 +5,5 @@ dist/
 .DS_Store
 *.tar.gz
 .vercel
+.env*
+!.env.example

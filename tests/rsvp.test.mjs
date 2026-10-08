@@ -26,7 +26,15 @@ test('tidak hadir menyimpan jumlah tamu nol', async () => {
   assert.equal(sqlite.prepare('SELECT guests FROM rsvps').get().guests, 0); sqlite.close()
 })
 test('validasi menolak nama kosong, jumlah tamu tidak valid, ucapan panjang, dan honeypot', () => {
-  for (const invalid of [{ name: ' ' }, { guests: 6 }, { guests: 1.5 }, { attendance: 'maybe' }, { message: 'x'.repeat(1001) }, { website: 'bot' }, { id: 'invalid' }]) assert.throws(() => validateRsvp({ ...body(), ...invalid }))
+  for (const invalid of [{ name: ' ' }, { guests: 4 }, { guests: 0 }, { guests: 1.5 }, { attendance: 'maybe' }, { message: 'x'.repeat(1001) }, { website: 'bot' }, { id: 'invalid' }]) assert.throws(() => validateRsvp({ ...body(), ...invalid }))
+})
+test('maksimal tiga tamu diterima dan empat tamu ditolak sebelum penyimpanan', async () => {
+  const { sqlite, DB } = database()
+  assert.equal((await worker.fetch(request({ ...body(), guests: 3 }), { DB })).status, 201)
+  assert.equal((await worker.fetch(request({ ...body(), guests: 4 }), { DB })).status, 400)
+  assert.equal(sqlite.prepare('SELECT guests FROM rsvps').get().guests, 3)
+  assert.equal(sqlite.prepare('SELECT count(*) AS count FROM rsvps').get().count, 1)
+  sqlite.close()
 })
 test('origin asing dan permintaan GET tidak dapat membaca/mengisi RSVP', async () => {
   assert.equal((await worker.fetch(request(body(), { headers: { Origin: 'https://another.example' } }), {})).status, 403)
