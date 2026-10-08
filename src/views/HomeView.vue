@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { ArrowUpRight, ArrowDown, ArrowRight, Heart, MessageCircle, LockKeyhole, CalendarDays, MapPin, Send, CheckCheck, Image, Wifi, Signal, BatteryFull, ChevronLeft, ChevronRight, X, ShieldCheck } from 'lucide-vue-next'
 import { invitation as data } from '../config'
+import { guestFromSearch } from '../lib/guest'
 import ChatHeader from '../components/ChatHeader.vue'
 import ChatBubble from '../components/ChatBubble.vue'
 const opened = ref(false), playing = ref(false), lightbox = ref(-1), toast = ref('')
@@ -19,7 +20,8 @@ function trapModalFocus(e) {
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
 }
 const remaining = ref(Date.parse(data.date) - Date.now())
-const guest = new URLSearchParams(location.search).get('to')?.slice(0, 100) || 'Tamu Istimewa'
+const invitedName = guestFromSearch(location.search)
+const guest = invitedName || 'Tamu Istimewa'
 const dateParts = computed(() => { const d = new Date(data.date); return { day: new Intl.DateTimeFormat('id-ID', { day: '2-digit', timeZone: 'Asia/Jakarta' }).format(d), month: new Intl.DateTimeFormat('id-ID', { month: '2-digit', timeZone: 'Asia/Jakarta' }).format(d), year: new Intl.DateTimeFormat('id-ID', { year: 'numeric', timeZone: 'Asia/Jakarta' }).format(d), short: new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' }).format(d), lock: new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Jakarta' }).format(d) } })
 const counter = computed(() => { const s = Math.max(0, Math.floor(remaining.value / 1000)); return [{ value: Math.floor(s / 86400), label: 'HARI' }, { value: Math.floor(s / 3600) % 24, label: 'JAM' }, { value: Math.floor(s / 60) % 60, label: 'MENIT' }, { value: s % 60, label: 'DETIK' }] })
 let interval, audioContext, musicTimer, toastTimer, audioNodes = []
@@ -43,7 +45,7 @@ function saveCalendar() {
   const text = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ihsan Syifa//Wedding//ID', 'BEGIN:VEVENT', `UID:ihsan-syifa-${fmt(start)}@wedding`, `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`, 'SUMMARY:Pernikahan Ihsan & Syifa', `LOCATION:${escape(data.venue + ', ' + data.address)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
   const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar' })); const a = document.createElement('a'); a.href = url; a.download = 'ihsan-syifa.ics'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('Undangan kalender siap ditambahkan.')
 }
-const form = ref({ name: guest === 'Tamu Istimewa' ? '' : guest, attendance: 'yes', guests: 1, message: '', website: '' })
+const form = ref({ name: invitedName, attendance: 'yes', guests: 1, message: '', website: '' })
 const submitting = ref(false), sent = ref(false), formError = ref('')
 const submissionId = crypto.randomUUID()
 async function submitRsvp() {
@@ -73,7 +75,7 @@ onBeforeUnmount(() => { clearInterval(interval); clearTimeout(toastTimer); stopM
           <div class="phone-status"><span>9:41</span><div><Signal :size="15"/><Wifi :size="16"/><BatteryFull :size="21"/></div></div>
           <div class="lock-clock"><LockKeyhole :size="21"/><span>{{ dateParts.lock }}</span><strong>09:41</strong><div class="clock-caption">a little message, a lifetime of love.</div></div>
           <div class="lock-invitation"><div class="lock-kicker">THE WEDDING OF</div><h2>Ihsan <span>&</span> Syifa</h2><p>{{ dateParts.short }} · {{ data.city }}</p></div>
-          <button class="notification" @click="open"><div class="notification-head"><span><MessageCircle :size="16" fill="currentColor"/> SEBUAH PESAN BAHAGIA</span><small>sekarang</small></div><div class="notification-body"><div class="avatar small">I<span>&</span>S</div><div><strong>Ihsan & Syifa <Heart :size="12" fill="currentColor"/></strong><p>Untuk {{ guest }},<br>kami punya kabar bahagia untukmu…</p></div><ChevronRight :size="21"/></div></button>
+          <button class="notification" @click="open"><div class="notification-head"><span><MessageCircle :size="16" fill="currentColor"/> SEBUAH PESAN BAHAGIA</span><small>sekarang</small></div><div class="notification-body"><div class="avatar small">I<span>&</span>S</div><div><strong>Ihsan & Syifa <Heart :size="12" fill="currentColor"/></strong><div class="notification-recipient"><span>Untuk tamu istimewa kami</span><b>{{ guest }}</b><p>Ada kabar bahagia untukmu…</p></div></div><ChevronRight :size="21"/></div></button>
           <button class="open-message" @click="open">Buka pesan <ArrowRight :size="18"/></button><span class="lock-note"><LockKeyhole :size="11"/> Sebuah undangan khusus untukmu</span><div class="home-indicator"></div>
         </section>
         <template v-else>
@@ -83,6 +85,7 @@ onBeforeUnmount(() => { clearInterval(interval); clearTimeout(toastTimer); stopM
             <ChatBubble><p>Assalamu’alaikum<br>Warahmatullahi Wabarakatuh 🌿</p></ChatBubble>
             <ChatBubble time="09.42"><p>Halo, <strong>{{ guest }}</strong>!<br>Ada kabar bahagia yang ingin kami bagi.</p><p>Dengan izin Allah dan restu keluarga,<br>kami akan memulai perjalanan baru.<br>Dan kamu adalah bagian dari cerita ini. 🤍</p></ChatBubble>
             <ChatBubble time="09.42" no-time><div class="profile-cover"><img :src="data.photos[0].src" alt="Foto contoh untuk profil pasangan" loading="lazy"/><div><span>WE'RE GETTING MARRIED</span><h2>Ihsan <em>&</em> Syifa</h2></div><span class="photo-count"><Image :size="12"/> 1 foto</span></div><div class="profile-details"><div class="card-eyebrow">BISMILLAHIRRAHMANIRRAHIM</div><h3>{{ data.groom.name }}</h3><div class="couple-ampersand">&</div><h3>{{ data.bride.name }}</h3><p>Dengan penuh rasa syukur, kami mengundang Anda<br>untuk merayakan hari bahagia kami.</p><span class="inline-time">09.42</span></div></ChatBubble>
+            <ChatBubble no-time><figure class="verse-card"><div class="verse-ornament"><span></span><Heart :size="16"/><span></span></div><p class="verse-arabic" lang="ar" dir="rtl">وَجَعَلَ بَيْنَكُمْ مَوَدَّةً وَرَحْمَةً</p><blockquote>“… agar kamu cenderung dan merasa tenteram kepadanya, dan Dia menjadikan di antaramu rasa kasih dan sayang.”</blockquote><figcaption><a href="https://quran.com/id/bangsa-romawi/21" target="_blank" rel="noopener noreferrer">QS. Ar-Rum · 21 <ArrowUpRight :size="11"/></a></figcaption></figure></ChatBubble>
             <ChatBubble time="09.43"><p>Catat tanggalnya, ya.<br>Kami tidak sabar bertemu denganmu! ✨</p></ChatBubble>
             <div id="event" class="section-anchor"><ChatBubble no-time><div class="event-card"><div class="card-eyebrow"><CalendarDays :size="13"/> SAVE OUR DATE</div><h2>Hari bahagia kami</h2><p class="event-date">{{ data.dateLabel }}</p><div class="event-times"><div v-for="(event, i) in data.events" :key="event.name"><span class="event-symbol">{{ i === 0 ? '♧' : '♡' }}</span><strong>{{ event.name }}</strong><small>{{ event.time }}</small></div></div><div class="venue"><MapPin :size="18"/><div><strong>{{ data.venue }}</strong><p>{{ data.address }}</p></div></div><a :href="data.mapsUrl" target="_blank" rel="noopener noreferrer" class="primary-button">Lihat lokasi <ArrowUpRight :size="17"/></a><button class="calendar-link" @click="saveCalendar"><CalendarDays :size="14"/> Tambahkan ke kalender</button><div class="countdown"><div v-for="item in counter" :key="item.label"><strong>{{ String(item.value).padStart(2, '0') }}</strong><small>{{ item.label }}</small></div></div><span v-if="data.demo" class="example-label">Tanggal & lokasi contoh</span></div></ChatBubble></div>
             <ChatBubble time="09.44"><p>Sebelum sampai di hari itu,<br>ini sedikit potongan kebahagiaan kami. 📷</p></ChatBubble>
