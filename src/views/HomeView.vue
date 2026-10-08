@@ -6,6 +6,7 @@ import { guestFromSearch } from '../lib/guest'
 import ChatHeader from '../components/ChatHeader.vue'
 import ChatBubble from '../components/ChatBubble.vue'
 const opened = ref(false), playing = ref(false), lightbox = ref(-1), toast = ref('')
+const mobileIntroDone = ref(false)
 const modal = ref(null)
 let previousFocus
 watch(lightbox, async (index) => {
@@ -26,7 +27,13 @@ const dateParts = computed(() => { const d = new Date(data.date); return { day: 
 const counter = computed(() => { const s = Math.max(0, Math.floor(remaining.value / 1000)); return [{ value: Math.floor(s / 86400), label: 'HARI' }, { value: Math.floor(s / 3600) % 24, label: 'JAM' }, { value: Math.floor(s / 60) % 60, label: 'MENIT' }, { value: s % 60, label: 'DETIK' }] })
 let interval, audioContext, musicTimer, toastTimer, audioNodes = []
 function notify(message) { toast.value = message; clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.value = '', 3200) }
-function open() { opened.value = true; window.scrollTo(0, 0) }
+async function continueIntro() {
+  mobileIntroDone.value = true
+  window.scrollTo(0, 0)
+  await nextTick()
+  document.querySelector('.notification')?.focus({ preventScroll: true })
+}
+function open() { mobileIntroDone.value = true; opened.value = true; window.scrollTo(0, 0) }
 function go(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
 function stopMusic() { clearInterval(musicTimer); audioNodes.forEach(n => { try { n.stop() } catch {} }); audioNodes = []; playing.value = false }
 async function toggleMusic() {
@@ -58,14 +65,15 @@ async function submitRsvp() {
 async function copyAccount(gift) { if (!gift.number) return; try { await navigator.clipboard.writeText(gift.number); notify('Nomor rekening berhasil disalin.') } catch { notify('Tidak dapat menyalin. Silakan salin nomor secara manual.') } }
 function handleKey(e) { if (e.key === 'Escape') lightbox.value = -1; if (lightbox.value < 0) return; if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') lightbox.value = (lightbox.value + 1) % data.photos.length }
 const modelLifecycle = new AbortController()
-onMounted(() => { interval = setInterval(() => remaining.value = Date.parse(data.date) - Date.now(), 1000); window.addEventListener('keydown', handleKey); const ctx = document.modelContext; if (ctx?.registerTool) Promise.resolve(ctx.registerTool({ name: 'start_wedding_rsvp', description: 'Buka formulir konfirmasi kehadiran pada undangan Ihsan dan Syifa.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false }, async execute(input) { if (!input || typeof input !== 'object' || Object.keys(input).length) throw new Error('Input harus objek kosong.'); opened.value = true; await nextTick(); go('rsvp'); return { form: 'rsvp', ready: true } } }, { signal: modelLifecycle.signal })).catch(() => {}) })
+onMounted(() => { interval = setInterval(() => remaining.value = Date.parse(data.date) - Date.now(), 1000); window.addEventListener('keydown', handleKey); const ctx = document.modelContext; if (ctx?.registerTool) Promise.resolve(ctx.registerTool({ name: 'start_wedding_rsvp', description: 'Buka formulir konfirmasi kehadiran pada undangan Ihsan dan Syifa.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false }, async execute(input) { if (!input || typeof input !== 'object' || Object.keys(input).length) throw new Error('Input harus objek kosong.'); open(); await nextTick(); go('rsvp'); return { form: 'rsvp', ready: true } } }, { signal: modelLifecycle.signal })).catch(() => {}) })
 onBeforeUnmount(() => { clearInterval(interval); clearTimeout(toastTimer); stopMusic(); audioContext?.close(); window.removeEventListener('keydown', handleKey); modelLifecycle.abort() })
 </script>
 <template>
-  <div class="site-shell">
+  <div class="site-shell" :class="{ 'intro-complete': mobileIntroDone }">
     <aside class="editorial-panel">
       <div class="editorial-top"><a class="wordmark" href="#" @click.prevent="opened = false">I <span>&</span> S<span class="wordmark-dot">.</span></a><span class="edition-label">THE WEDDING INVITATION</span></div>
       <div class="editorial-copy"><div class="eyebrow"><span></span> SEBUAH AWAL, SELAMANYA</div><h1>Dua hati.<br>Satu <em>cerita.</em></h1><p>Di antara banyaknya pesan,<br>ada satu yang ingin kami sampaikan kepadamu.</p><div class="couple-signature">Ihsan <span>&</span> Syifa</div><div class="editorial-date"><span>{{ dateParts.day }} . {{ dateParts.month }} . {{ dateParts.year }}</span><i></i><span>{{ data.city.toUpperCase() }}</span></div></div>
+      <div class="mobile-intro-actions"><div class="mobile-intro-recipient"><span>UNDANGAN KHUSUS UNTUK</span><strong>{{ guest }}</strong></div><button class="primary-button" @click="continueIntro">Lihat pesan undangan <ArrowRight :size="17"/></button></div>
       <div class="editorial-bottom"><span>DIKIRIM DENGAN SEPENUH HATI</span><Heart :size="17"/><span>UNTUKMU.</span></div><div class="side-decoration">forever starts here</div>
     </aside>
     <main class="phone-column" :class="{ 'is-open': opened }">
